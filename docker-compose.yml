@@ -1,0 +1,81 @@
+# urbansplat — full self-hosted stack. `docker-compose up` brings up everything.
+# Dry-run is ON by default (no GPU needed). For real reconstruction, set
+# URBANSPLAT_DRY_RUN=0 and run the worker on a CUDA host with COLMAP + gsplat installed.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: urbansplat
+      POSTGRES_PASSWORD: urbansplat
+      POSTGRES_DB: urbansplat
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U urbansplat"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: urbansplat
+      MINIO_ROOT_PASSWORD: urbansplat
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: ./backend
+    env_file: .env
+    command: celery -A urbansplat.worker.celery_app:celery_app worker --loglevel=info --concurrency=1
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    # For real GPU runs, uncomment and run on an NVIDIA host:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  viewer:
+    image: nginx:alpine
+    volumes:
+      - ./viewer:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
+  miniodata:

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>urbansplat</title>
+<style>
+  :root { --bg:#0b0d12; --panel:#151922; --line:#232a36; --fg:#e7ecf3; --muted:#8893a5; --accent:#5b8cff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+  header h1 { font-size:18px; margin:0; }
+  header .tag { color:var(--muted); font-size:12px; }
+  main { display:grid; grid-template-columns:380px 1fr; height:calc(100vh - 57px); }
+  .side { border-right:1px solid var(--line); padding:20px; overflow:auto; }
+  .viewer { position:relative; }
+  #splat { width:100%; height:100%; display:block; }
+  form { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:20px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:8px 0 4px; }
+  input[type=text], input[type=file] { width:100%; background:#0e1117; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:8px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:9px 14px; font-weight:600; cursor:pointer; margin-top:12px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .job { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; cursor:pointer; }
+  .job:hover { border-color:var(--accent); }
+  .job .name { font-weight:600; }
+  .job .id { color:var(--muted); font-size:11px; }
+  .stages { display:flex; gap:4px; margin-top:8px; }
+  .pill { flex:1; text-align:center; font-size:10px; padding:3px 0; border-radius:4px; background:#0e1117; color:var(--muted); border:1px solid var(--line); }
+  .pill.running { color:#ffcf5b; border-color:#ffcf5b; }
+  .pill.succeeded { color:#46d39a; border-color:#46d39a; }
+  .pill.failed { color:#ff6b6b; border-color:#ff6b6b; }
+  .status { font-size:11px; margin-top:6px; }
+  .status.failed { color:#ff6b6b; }
+  .empty { color:var(--muted); text-align:center; padding:40px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>urbansplat</h1>
+  <span class="tag">360° video → navigable 3D splat</span>
+</header>
+<main>
+  <div class="side">
+    <form id="upload">
+      <label>Scene name</label>
+      <input type="text" id="name" placeholder="e.g. Market Street" />
+      <label>360° video (.mp4)</label>
+      <input type="file" id="file" accept="video/*" required />
+      <button type="submit" id="submit">Process scene</button>
+    </form>
+    <div id="jobs"><div class="empty">No jobs yet.</div></div>
+  </div>
+  <div class="viewer">
+    <canvas id="splat"></canvas>
+  </div>
+</main>
+
+<script type="module">
+const API = (location.origin.includes(":8080") || location.port === "")
+  ? "http://localhost:8000" : "http://localhost:8000";
+
+const jobsEl = document.getElementById("jobs");
+const form = document.getElementById("upload");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("submit");
+  const file = document.getElementById("file").files[0];
+  if (!file) return;
+  btn.disabled = true; btn.textContent = "Uploading…";
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("name", document.getElementById("name").value || "untitled");
+  try {
+    await fetch(`${API}/api/jobs`, { method: "POST", body: fd });
+    form.reset();
+  } catch (err) { alert("Upload failed: " + err); }
+  btn.disabled = false; btn.textContent = "Process scene";
+  refresh();
+});
+
+const STAGES = ["extract", "pose", "train", "compress"];
+
+function renderJob(job) {
+  const stageMap = Object.fromEntries(job.stages.map(s => [s.name, s.status]));
+  const pills = STAGES.map(n =>
+    `<div class="pill ${stageMap[n] || ""}">${n}</div>`).join("");
+  const statusLine = job.status === "failed"
+    ? `<div class="status failed">✕ ${job.error || "failed"}</div>`
+    : `<div class="status">${job.status}</div>`;
+  return `<div class="job" data-id="${job.id}" data-ready="${job.scene ? 1 : 0}">
+    <div class="name">${job.name}</div>
+    <div class="id">${job.id}</div>
+    <div class="stages">${pills}</div>
+    ${statusLine}
+  </div>`;
+}
+
+async function refresh() {
+  try {
+    const res = await fetch(`${API}/api/jobs`);
+    const jobs = await res.json();
+    jobsEl.innerHTML = jobs.length
+      ? jobs.map(renderJob).join("")
+      : `<div class="empty">No jobs yet.</div>`;
+    for (const el of jobsEl.querySelectorAll(".job")) {
+      el.addEventListener("click", () => {
+        if (el.dataset.ready === "1") loadSplat(el.dataset.id);
+        else alert("Scene not ready yet.");
+      });
+    }
+  } catch (_) { /* api not up yet */ }
+}
+
+// Splat rendering: load PlayCanvas engine lazily; it supports SOG/compressed PLY.
+async function loadSplat(jobId) {
+  const url = `${API}/api/scenes/${jobId}/splat`;
+  // The viewer wiring uses the PlayCanvas engine's GSplat component.
+  // Kept minimal: open the scene URL in a dedicated splat viewer tab as fallback
+  // until the embedded canvas renderer is finalized.
+  window.open(`https://superspl.at/editor?load=${encodeURIComponent(url)}`, "_blank");
+}
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>
