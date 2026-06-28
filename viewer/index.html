@@ -56,8 +56,8 @@
 </main>
 
 <script type="module">
-const API = (location.origin.includes(":8080") || location.port === "")
-  ? "http://localhost:8000" : "http://localhost:8000";
+// API lives on the same host as the viewer, port 8000.
+const API = `${location.protocol}//${location.hostname}:8000`;
 
 const jobsEl = document.getElementById("jobs");
 const form = document.getElementById("upload");
