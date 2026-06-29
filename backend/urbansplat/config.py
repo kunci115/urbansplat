@@ -33,7 +33,10 @@ class Settings(BaseSettings):
     frame_sample_fps: float = 2.0          # frames extracted per second of video
     blur_threshold: float = 60.0           # Laplacian variance; below = drop frame
     train_iterations: int = 30000
-    cubemap_face_size: int = 1024          # px per cubemap face for panorama_sfm
+    # 360 → perspective reprojection (equirectangular input only).
+    views_per_frame: int = 8               # perspective views sampled around each pano
+    perspective_fov: float = 90.0          # FOV (deg) of each reprojected view
+    perspective_size: int = 1024           # px (square) per reprojected view
 
     @property
     def celery_broker(self) -> str:

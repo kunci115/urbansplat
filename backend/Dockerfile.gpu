@@ -6,7 +6,7 @@ FROM ghcr.io/nerfstudio-project/nerfstudio:latest
 # Orchestration deps. Left unpinned (except where safe) so they resolve against the
 # versions nerfstudio already ships and don't fight its torch/pydantic stack.
 RUN python -m pip install --no-cache-dir \
-        celery redis "sqlalchemy>=2,<3" "psycopg[binary]" minio pydantic-settings
+        celery redis "sqlalchemy>=2,<3" "psycopg[binary]" minio pydantic-settings py360convert
 
 WORKDIR /app
 COPY urbansplat ./urbansplat
