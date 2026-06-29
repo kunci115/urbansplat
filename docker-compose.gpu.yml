@@ -1,0 +1,19 @@
+# GPU overlay — real reconstruction worker.
+# Run with:  docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+# Replaces the dry-run worker with a nerfstudio-based GPU worker.
+
+services:
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.gpu
+    runtime: nvidia
+    environment:
+      URBANSPLAT_DRY_RUN: "0"
+      URBANSPLAT_WORK_DIR: /work          # on /home (big disk), not container root
+      URBANSPLAT_TRAIN_ITERATIONS: "7000" # quick preview; raise to 30000 for final
+      NVIDIA_VISIBLE_DEVICES: "0"          # one 4090; GPU 1 free for a second worker
+      NVIDIA_DRIVER_CAPABILITIES: all
+    volumes:
+      - /home/ces-ai/urbansplat_work:/work
+    command: celery -A urbansplat.worker.celery_app:celery_app worker --loglevel=info --concurrency=1

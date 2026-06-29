@@ -21,19 +21,25 @@ class PipelineContext:
 
     job_id: str
     work: Path                       # job-local working directory
-    source_video: Path               # local path to downloaded 360 source
+    source_video: Path               # local path to downloaded source video
     frames_dir: Path = field(init=False)
+    processed_dir: Path = field(init=False)   # nerfstudio dataset (poses + images)
     colmap_dir: Path = field(init=False)
-    splat_ply: Path = field(init=False)
-    splat_sog: Path = field(init=False)
+    splat_ply: Path = field(init=False)       # raw trainer output
+    # Final web-ready artifact + its format, set by the compress stage and read by the
+    # worker when uploading. Defaults to the raw ply so a passthrough is valid.
+    output: Path = field(init=False)
+    output_format: str = field(init=False)
     metrics: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.frames_dir = self.work / "frames"
+        self.processed_dir = self.work / "processed"
         self.colmap_dir = self.work / "colmap"
         self.splat_ply = self.work / "splat.ply"
-        self.splat_sog = self.work / "splat.sog"
-        for d in (self.work, self.frames_dir, self.colmap_dir):
+        self.output = self.splat_ply
+        self.output_format = "ply"
+        for d in (self.work, self.frames_dir):
             d.mkdir(parents=True, exist_ok=True)
 
 

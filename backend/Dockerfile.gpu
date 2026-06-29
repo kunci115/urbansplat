@@ -1,0 +1,17 @@
+# GPU worker — real reconstruction. Built on the official nerfstudio image, which
+# already bundles CUDA, torch, gsplat/splatfacto, COLMAP and ffmpeg. We only add the
+# orchestration deps + our package on top.
+FROM ghcr.io/nerfstudio-project/nerfstudio:latest
+
+# Orchestration deps. Left unpinned (except where safe) so they resolve against the
+# versions nerfstudio already ships and don't fight its torch/pydantic stack.
+RUN pip install --no-cache-dir \
+        celery redis "sqlalchemy>=2,<3" "psycopg[binary]" minio pydantic-settings
+
+WORKDIR /app
+COPY urbansplat ./urbansplat
+ENV PYTHONPATH=/app
+
+# Drop any base-image entrypoint so our CMD runs directly.
+ENTRYPOINT []
+CMD ["celery", "-A", "urbansplat.worker.celery_app:celery_app", "worker", "--loglevel=info", "--concurrency=1"]

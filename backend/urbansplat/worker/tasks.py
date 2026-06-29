@@ -105,8 +105,8 @@ def _run_stage(job_id: str, name: str, ctx: PipelineContext) -> None:
 
 
 def _finalize_success(job_id: str, ctx: PipelineContext) -> None:
-    splat_key = f"scenes/{job_id}/splat.sog"
-    storage.put_file(splat_key, ctx.splat_sog, content_type="application/octet-stream")
+    splat_key = f"scenes/{job_id}/splat.{ctx.output_format}"
+    storage.put_file(splat_key, ctx.output, content_type="application/octet-stream")
     with session_scope() as session:
         job = session.get(Job, job_id)
         job.status = JobStatus.succeeded
@@ -114,7 +114,7 @@ def _finalize_success(job_id: str, ctx: PipelineContext) -> None:
             Scene(
                 job_id=job_id,
                 splat_key=splat_key,
-                splat_format="sog",
+                splat_format=ctx.output_format,
                 num_gaussians=ctx.metrics.get("num_gaussians"),
                 size_bytes=ctx.metrics.get("compressed_bytes"),
             )
