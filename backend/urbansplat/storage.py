@@ -57,3 +57,21 @@ def presigned_url(key: str, expires_seconds: int = 3600) -> str:
     return client().presigned_get_object(
         settings.s3_bucket, key, expires=timedelta(seconds=expires_seconds)
     )
+
+
+def stat(key: str):
+    return client().stat_object(settings.s3_bucket, key)
+
+
+def stream_object(key: str, chunk: int = 256 * 1024):
+    """Yield object bytes from storage, then release the connection.
+
+    Used to proxy splat files straight to the browser — the browser can't resolve
+    the internal `minio:9000` host a presigned URL would point at.
+    """
+    resp = client().get_object(settings.s3_bucket, key)
+    try:
+        yield from resp.stream(chunk)
+    finally:
+        resp.close()
+        resp.release_conn()

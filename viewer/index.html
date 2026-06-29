@@ -7,14 +7,16 @@
 <style>
   :root { --bg:#0b0d12; --panel:#151922; --line:#232a36; --fg:#e7ecf3; --muted:#8893a5; --accent:#5b8cff; }
   * { box-sizing: border-box; }
-  body { margin:0; font:14px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+  html,body { margin:0; height:100%; font:14px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--fg); }
   header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
   header h1 { font-size:18px; margin:0; }
   header .tag { color:var(--muted); font-size:12px; }
   main { display:grid; grid-template-columns:380px 1fr; height:calc(100vh - 57px); }
   .side { border-right:1px solid var(--line); padding:20px; overflow:auto; }
-  .viewer { position:relative; }
-  #splat { width:100%; height:100%; display:block; }
+  .viewer { position:relative; background:radial-gradient(circle at 50% 40%, #11161f, #0b0d12); }
+  #splat { width:100%; height:100%; display:block; outline:none; }
+  .hint { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:var(--muted); text-align:center; pointer-events:none; }
+  .badge { position:absolute; left:14px; bottom:12px; background:#0e1117cc; border:1px solid var(--line); border-radius:6px; padding:6px 10px; font-size:12px; color:var(--muted); }
   form { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:20px; }
   label { display:block; font-size:12px; color:var(--muted); margin:8px 0 4px; }
   input[type=text], input[type=file] { width:100%; background:#0e1117; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:8px; }
@@ -22,6 +24,7 @@
   button:disabled { opacity:.5; cursor:default; }
   .job { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; cursor:pointer; }
   .job:hover { border-color:var(--accent); }
+  .job.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
   .job .name { font-weight:600; }
   .job .id { color:var(--muted); font-size:11px; }
   .stages { display:flex; gap:4px; margin-top:8px; }
@@ -44,7 +47,7 @@
     <form id="upload">
       <label>Scene name</label>
       <input type="text" id="name" placeholder="e.g. Market Street" />
-      <label>360° video (.mp4)</label>
+      <label>Video (.mp4)</label>
       <input type="file" id="file" accept="video/*" required />
       <button type="submit" id="submit">Process scene</button>
     </form>
@@ -52,15 +55,20 @@
   </div>
   <div class="viewer">
     <canvas id="splat"></canvas>
+    <div class="hint" id="hint">Click a finished scene to view it here.</div>
+    <div class="badge" id="badge" style="display:none"></div>
   </div>
 </main>
 
-<script type="module">
-// API lives on the same host as the viewer, port 8000.
+<script src="https://cdn.jsdelivr.net/npm/playcanvas@2.7.4/build/playcanvas.min.js"></script>
+<script>
 const API = `${location.protocol}//${location.hostname}:8000`;
+const STAGES = ["extract", "pose", "train", "compress"];
 
+// ---------- dashboard ----------
 const jobsEl = document.getElementById("jobs");
 const form = document.getElementById("upload");
+let activeId = null;
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -71,58 +79,108 @@ form.addEventListener("submit", async (e) => {
   const fd = new FormData();
   fd.append("file", file);
   fd.append("name", document.getElementById("name").value || "untitled");
-  try {
-    await fetch(`${API}/api/jobs`, { method: "POST", body: fd });
-    form.reset();
-  } catch (err) { alert("Upload failed: " + err); }
+  try { await fetch(`${API}/api/jobs`, { method: "POST", body: fd }); form.reset(); }
+  catch (err) { alert("Upload failed: " + err); }
   btn.disabled = false; btn.textContent = "Process scene";
   refresh();
 });
 
-const STAGES = ["extract", "pose", "train", "compress"];
-
 function renderJob(job) {
-  const stageMap = Object.fromEntries(job.stages.map(s => [s.name, s.status]));
-  const pills = STAGES.map(n =>
-    `<div class="pill ${stageMap[n] || ""}">${n}</div>`).join("");
-  const statusLine = job.status === "failed"
+  const sm = Object.fromEntries(job.stages.map(s => [s.name, s.status]));
+  const pills = STAGES.map(n => `<div class="pill ${sm[n]||""}">${n}</div>`).join("");
+  const status = job.status === "failed"
     ? `<div class="status failed">✕ ${job.error || "failed"}</div>`
     : `<div class="status">${job.status}</div>`;
-  return `<div class="job" data-id="${job.id}" data-ready="${job.scene ? 1 : 0}">
-    <div class="name">${job.name}</div>
-    <div class="id">${job.id}</div>
-    <div class="stages">${pills}</div>
-    ${statusLine}
-  </div>`;
+  const active = job.id === activeId ? "active" : "";
+  return `<div class="job ${active}" data-id="${job.id}" data-ready="${job.scene?1:0}">
+    <div class="name">${job.name}</div><div class="id">${job.id}</div>
+    <div class="stages">${pills}</div>${status}</div>`;
 }
 
 async function refresh() {
   try {
-    const res = await fetch(`${API}/api/jobs`);
-    const jobs = await res.json();
-    jobsEl.innerHTML = jobs.length
-      ? jobs.map(renderJob).join("")
-      : `<div class="empty">No jobs yet.</div>`;
+    const jobs = await (await fetch(`${API}/api/jobs`)).json();
+    jobsEl.innerHTML = jobs.length ? jobs.map(renderJob).join("") : `<div class="empty">No jobs yet.</div>`;
     for (const el of jobsEl.querySelectorAll(".job")) {
       el.addEventListener("click", () => {
-        if (el.dataset.ready === "1") loadSplat(el.dataset.id);
+        if (el.dataset.ready === "1") { activeId = el.dataset.id; loadSplat(el.dataset.id); refresh(); }
         else alert("Scene not ready yet.");
       });
     }
-  } catch (_) { /* api not up yet */ }
+  } catch (_) {}
 }
-
-// Splat rendering: load PlayCanvas engine lazily; it supports SOG/compressed PLY.
-async function loadSplat(jobId) {
-  const url = `${API}/api/scenes/${jobId}/splat`;
-  // The viewer wiring uses the PlayCanvas engine's GSplat component.
-  // Kept minimal: open the scene URL in a dedicated splat viewer tab as fallback
-  // until the embedded canvas renderer is finalized.
-  window.open(`https://superspl.at/editor?load=${encodeURIComponent(url)}`, "_blank");
-}
-
 refresh();
 setInterval(refresh, 3000);
+
+// ---------- embedded splat renderer (PlayCanvas) ----------
+const canvas = document.getElementById("splat");
+const hint = document.getElementById("hint");
+const badge = document.getElementById("badge");
+let app, camera, splatEntity, orbit = { yaw: 0, pitch: -10, dist: 4, tx: 0, ty: 0 };
+
+function initApp() {
+  app = new pc.Application(canvas, {
+    mouse: new pc.Mouse(canvas),
+    touch: new pc.TouchDevice(canvas),
+    graphicsDeviceOptions: { antialias: true },
+  });
+  app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
+  app.setCanvasResolution(pc.RESOLUTION_AUTO);
+  window.addEventListener("resize", () => app.resizeCanvas());
+
+  camera = new pc.Entity("camera");
+  camera.addComponent("camera", { clearColor: new pc.Color(0.043, 0.051, 0.071), toneMapping: pc.TONEMAP_ACES });
+  app.root.addChild(camera);
+  updateCamera();
+
+  // minimal orbit controls
+  const m = app.mouse;
+  let dragging = 0;
+  m.on(pc.EVENT_MOUSEDOWN, e => dragging = e.button === 0 ? 1 : (e.button === 2 ? 2 : 0));
+  m.on(pc.EVENT_MOUSEUP, () => dragging = 0);
+  m.on(pc.EVENT_MOUSEMOVE, e => {
+    if (dragging === 1) { orbit.yaw -= e.dx * 0.3; orbit.pitch = Math.max(-89, Math.min(89, orbit.pitch - e.dy * 0.3)); updateCamera(); }
+    else if (dragging === 2) { orbit.tx -= e.dx * 0.01; orbit.ty += e.dy * 0.01; updateCamera(); }
+  });
+  m.on(pc.EVENT_MOUSEWHEEL, e => { orbit.dist = Math.max(0.5, orbit.dist * (1 - e.wheelDelta * 0.1)); updateCamera(); e.event.preventDefault(); });
+  canvas.addEventListener("contextmenu", e => e.preventDefault());
+  m.disableContextMenu();
+
+  app.start();
+}
+
+function updateCamera() {
+  const ry = orbit.yaw * Math.PI / 180, rp = orbit.pitch * Math.PI / 180;
+  const x = orbit.dist * Math.cos(rp) * Math.sin(ry);
+  const y = orbit.dist * Math.sin(rp);
+  const z = orbit.dist * Math.cos(rp) * Math.cos(ry);
+  const t = new pc.Vec3(orbit.tx, orbit.ty, 0);
+  camera.setPosition(t.x + x, t.y + y, t.z + z);
+  camera.lookAt(t.x, t.y, t.z);
+}
+
+function loadSplat(jobId) {
+  if (!app) initApp();
+  hint.style.display = "none";
+  badge.style.display = "block";
+  badge.textContent = "Loading splat…";
+
+  if (splatEntity) { splatEntity.destroy(); splatEntity = null; }
+  const url = `${API}/api/scenes/${jobId}/splat`;
+  const asset = new pc.Asset("splat-" + jobId, "gsplat", { url, filename: "scene.ply" });
+  asset.on("error", err => { badge.textContent = "Load failed: " + err; });
+  app.assets.add(asset);
+  app.assets.load(asset);
+  asset.ready(() => {
+    splatEntity = new pc.Entity("splat");
+    splatEntity.addComponent("gsplat", { asset });
+    // gaussian splats from COLMAP/gsplat are usually +Y-down; flip to face camera.
+    splatEntity.setLocalEulerAngles(180, 0, 0);
+    app.root.addChild(splatEntity);
+    orbit = { yaw: 0, pitch: -10, dist: 4, tx: 0, ty: 0 }; updateCamera();
+    badge.textContent = "Drag: orbit · Right-drag: pan · Wheel: zoom";
+  });
+}
 </script>
 </body>
 </html>

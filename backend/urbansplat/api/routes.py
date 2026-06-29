@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import RedirectResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from .. import storage
@@ -70,9 +70,24 @@ def get_job(job_id: str, session: Session = Depends(get_session)) -> Job:
 
 
 @router.get("/scenes/{job_id}/splat")
-def get_splat(job_id: str, session: Session = Depends(get_session)) -> RedirectResponse:
-    """Redirect to a presigned URL for the compressed splat (streamed from object store)."""
+def get_splat(job_id: str, session: Session = Depends(get_session)) -> StreamingResponse:
+    """Stream the splat bytes straight from object storage to the browser.
+
+    Proxying (rather than redirecting to a presigned URL) keeps storage internal —
+    the browser only ever talks to the API host, never to `minio:9000`.
+    """
     scene = session.query(Scene).filter(Scene.job_id == job_id).one_or_none()
     if scene is None:
         raise HTTPException(404, "scene not ready")
-    return RedirectResponse(storage.presigned_url(scene.splat_key))
+    filename = f"scene.{scene.splat_format}"  # extension lets the viewer pick a loader
+    headers = {"Content-Disposition": f'inline; filename="{filename}"'}
+    try:
+        size = storage.stat(scene.splat_key).size
+        headers["Content-Length"] = str(size)
+    except Exception:
+        pass
+    return StreamingResponse(
+        storage.stream_object(scene.splat_key),
+        media_type="application/octet-stream",
+        headers=headers,
+    )
