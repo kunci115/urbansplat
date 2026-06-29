@@ -12,6 +12,8 @@ services:
       URBANSPLAT_DRY_RUN: "0"
       URBANSPLAT_WORK_DIR: /work          # on /home (big disk), not container root
       URBANSPLAT_TRAIN_ITERATIONS: "7000" # quick preview; raise to 30000 for final
+      URBANSPLAT_FRAME_SAMPLE_FPS: "1"    # 360: keep image count tractable for COLMAP
+      URBANSPLAT_VIEWS_PER_FRAME: "6"     # perspective views per equirect frame
       NVIDIA_VISIBLE_DEVICES: "0"          # one 4090; GPU 1 free for a second worker
       NVIDIA_DRIVER_CAPABILITIES: all
     volumes:

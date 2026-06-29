@@ -39,7 +39,9 @@ def _is_equirectangular(image_path: Path) -> bool:
     if img is None:
         return False
     h, w = img.shape[:2]
-    return 1.8 <= (w / h) <= 2.2  # equirectangular panoramas are 2:1
+    # True equirect is 2:1, but platforms (e.g. YouTube) often store it in a 16:9
+    # frame, so accept anything wide-ish and normalise to 2:1 before reprojecting.
+    return 1.7 <= (w / h) <= 2.2
 
 
 def _equirect_to_perspectives(src: Path, dst_dir: Path, stem: str) -> int:
@@ -50,6 +52,10 @@ def _equirect_to_perspectives(src: Path, dst_dir: Path, stem: str) -> int:
     equ = cv2.imread(str(src))
     if equ is None:
         return 0
+    # Normalise to exact 2:1 so e2p's full-sphere (360×180) assumption holds.
+    h, w = equ.shape[:2]
+    if abs(w / h - 2.0) > 0.02:
+        equ = cv2.resize(equ, (w, w // 2), interpolation=cv2.INTER_AREA)
     size = settings.perspective_size
     fov = settings.perspective_fov
     n = settings.views_per_frame
