@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     train_iterations: int = 30000
     # 360 → perspective reprojection (equirectangular input only).
     views_per_frame: int = 8               # perspective views sampled around each pano
+    perspective_yaw_offset: float = 0.0    # yaw of first view (90 = side-on, best parallax)
     perspective_fov: float = 90.0          # FOV (deg) of each reprojected view
     perspective_size: int = 1024           # px (square) per reprojected view
 

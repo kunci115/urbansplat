@@ -12,8 +12,9 @@ services:
       URBANSPLAT_DRY_RUN: "0"
       URBANSPLAT_WORK_DIR: /work          # on /home (big disk), not container root
       URBANSPLAT_TRAIN_ITERATIONS: "7000" # quick preview; raise to 30000 for final
-      URBANSPLAT_FRAME_SAMPLE_FPS: "2"    # 360: denser sampling = smaller baseline, better matching
-      URBANSPLAT_VIEWS_PER_FRAME: "6"     # perspective views per equirect frame
+      URBANSPLAT_FRAME_SAMPLE_FPS: "3"    # 360: dense sampling for a translating sequence
+      URBANSPLAT_VIEWS_PER_FRAME: "2"     # two opposite side-on views (no intra-frame overlap)
+      URBANSPLAT_PERSPECTIVE_YAW_OFFSET: "90"  # look sideways = max parallax while walking
       NVIDIA_VISIBLE_DEVICES: "0"          # one 4090; GPU 1 free for a second worker
       NVIDIA_DRIVER_CAPABILITIES: all
     volumes:

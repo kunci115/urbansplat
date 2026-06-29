@@ -61,7 +61,11 @@ def _equirect_to_perspectives(src: Path, dst_dir: Path, stem: str) -> int:
     n = settings.views_per_frame
     written = 0
     for i in range(n):
-        yaw = (360.0 / n) * i
+        # Offset lets us aim views to the sides (perpendicular to walking direction),
+        # which gives strong parallax across frames. With n=2 + offset 90° the two
+        # views look opposite ways and never overlap within a frame, avoiding the
+        # pure-rotation (shared optical centre) degeneracy that stalls COLMAP.
+        yaw = settings.perspective_yaw_offset + (360.0 / n) * i
         persp = py360convert.e2p(
             equ, fov_deg=(fov, fov), u_deg=yaw, v_deg=0.0, out_hw=(size, size)
         )
