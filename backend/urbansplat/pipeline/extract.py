@@ -13,9 +13,12 @@ from ..config import settings
 from .base import PipelineContext, StageError, run_command
 
 
-def _measure_blur(image_path: Path) -> float:
-    import cv2
-
+def _measure_blur(image_path: Path) -> float | None:
+    """Sharpness via variance-of-Laplacian. Returns None if opencv is unavailable."""
+    try:
+        import cv2
+    except ImportError:
+        return None
     img = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
     if img is None:
         return 0.0
@@ -43,10 +46,11 @@ def extract_frames(ctx: PipelineContext, log: list[str]) -> None:
         log,
     )
 
-    # 2. Blur filter — drop frames below the sharpness threshold.
+    # 2. Blur filter — drop frames below the sharpness threshold (skipped if no opencv).
     kept, dropped = 0, 0
     for frame in sorted(ctx.frames_dir.glob("frame_*.jpg")):
-        if _measure_blur(frame) < settings.blur_threshold:
+        sharpness = _measure_blur(frame)
+        if sharpness is not None and sharpness < settings.blur_threshold:
             frame.unlink()
             dropped += 1
         else:
