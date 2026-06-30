@@ -11,7 +11,7 @@ services:
     environment:
       URBANSPLAT_DRY_RUN: "0"
       URBANSPLAT_WORK_DIR: /work          # on /home (big disk), not container root
-      URBANSPLAT_TRAIN_ITERATIONS: "7000" # quick preview; raise to 30000 for final
+      URBANSPLAT_TRAIN_ITERATIONS: "30000" # final quality (~20-30 min on a 4090)
       URBANSPLAT_FRAME_SAMPLE_FPS: "3"    # 360: dense sampling for a translating sequence
       URBANSPLAT_VIEWS_PER_FRAME: "2"     # two opposite side-on views (no intra-frame overlap)
       URBANSPLAT_PERSPECTIVE_YAW_OFFSET: "90"  # look sideways = max parallax while walking

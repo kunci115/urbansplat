@@ -8,6 +8,13 @@ FROM ghcr.io/nerfstudio-project/nerfstudio:latest
 RUN python -m pip install --no-cache-dir \
         celery redis "sqlalchemy>=2,<3" "psycopg[binary]" minio pydantic-settings py360convert
 
+# Node 20 + PlayCanvas splat-transform for SOG compression of the trained .ply.
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g @playcanvas/splat-transform \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY urbansplat ./urbansplat
 ENV PYTHONPATH=/app

@@ -1,26 +1,44 @@
-"""Stage 4 — package the web-ready artifact.
+"""Stage 4 — compress the trained splat to a web-ready format.
 
-For now this passes the trained .ply straight through: the PlayCanvas viewer loads
-gaussian-splat .ply directly. SOG/SOGS compression (~95% smaller) is a planned
-follow-up via PlayCanvas `splat-transform`; wire it here when ready.
+Raw .ply is huge (100s of MB) and slow to load. PlayCanvas `splat-transform` packs the
+gaussians into SOG (WebP-channel encoding, ~10-20x smaller) which the PlayCanvas viewer
+loads natively. Falls back to passthrough .ply if the tool is unavailable.
 """
 
 from __future__ import annotations
 
+import shutil
+
 from ..config import settings
-from .base import PipelineContext, StageError
+from .base import PipelineContext, StageError, run_command
 
 
 def compress(ctx: PipelineContext, log: list[str]) -> None:
     if not ctx.splat_ply.exists():
         raise StageError("no trained .ply to package")
 
-    ctx.output = ctx.splat_ply
-    ctx.output_format = "ply"
-    size = ctx.splat_ply.stat().st_size
-    ctx.metrics["compressed_bytes"] = size
+    raw_size = ctx.splat_ply.stat().st_size
 
     if settings.dry_run:
+        ctx.output = ctx.splat_ply
+        ctx.output_format = "ply"
+        ctx.metrics["compressed_bytes"] = raw_size
         log.append("[dry-run] passthrough splat.ply")
+        return
+
+    sog = ctx.work / "splat.sog"
+    if shutil.which("splat-transform"):
+        run_command(["splat-transform", str(ctx.splat_ply), str(sog)], log)
+
+    if sog.exists() and sog.stat().st_size > 0:
+        ctx.output = sog
+        ctx.output_format = "sog"
+        size = sog.stat().st_size
+        ctx.metrics["compressed_bytes"] = size
+        log.append(f"compressed {raw_size} → {size} bytes SOG ({raw_size/max(size,1):.1f}x)")
     else:
-        log.append(f"packaged splat.ply ({size} bytes)")
+        # Fallback: serve the raw ply so a scene is still produced.
+        ctx.output = ctx.splat_ply
+        ctx.output_format = "ply"
+        ctx.metrics["compressed_bytes"] = raw_size
+        log.append("splat-transform unavailable/failed — serving raw .ply")

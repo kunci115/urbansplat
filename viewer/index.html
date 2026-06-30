@@ -92,7 +92,8 @@ function renderJob(job) {
     ? `<div class="status failed">✕ ${job.error || "failed"}</div>`
     : `<div class="status">${job.status}</div>`;
   const active = job.id === activeId ? "active" : "";
-  return `<div class="job ${active}" data-id="${job.id}" data-ready="${job.scene?1:0}">
+  const fmt = job.scene ? (job.scene.splat_format || "ply") : "";
+  return `<div class="job ${active}" data-id="${job.id}" data-ready="${job.scene?1:0}" data-fmt="${fmt}">
     <div class="name">${job.name}</div><div class="id">${job.id}</div>
     <div class="stages">${pills}</div>${status}</div>`;
 }
@@ -103,7 +104,7 @@ async function refresh() {
     jobsEl.innerHTML = jobs.length ? jobs.map(renderJob).join("") : `<div class="empty">No jobs yet.</div>`;
     for (const el of jobsEl.querySelectorAll(".job")) {
       el.addEventListener("click", () => {
-        if (el.dataset.ready === "1") { activeId = el.dataset.id; loadSplat(el.dataset.id); refresh(); }
+        if (el.dataset.ready === "1") { activeId = el.dataset.id; loadSplat(el.dataset.id, el.dataset.fmt); refresh(); }
         else alert("Scene not ready yet.");
       });
     }
@@ -159,7 +160,7 @@ function updateCamera() {
   camera.lookAt(t.x, t.y, t.z);
 }
 
-function loadSplat(jobId) {
+function loadSplat(jobId, fmt) {
   if (!app) initApp();
   hint.style.display = "none";
   badge.style.display = "block";
@@ -167,7 +168,8 @@ function loadSplat(jobId) {
 
   if (splatEntity) { splatEntity.destroy(); splatEntity = null; }
   const url = `${API}/api/scenes/${jobId}/splat`;
-  const asset = new pc.Asset("splat-" + jobId, "gsplat", { url, filename: "scene.ply" });
+  const filename = "scene." + (fmt || "ply");  // lets the loader pick ply vs sog
+  const asset = new pc.Asset("splat-" + jobId, "gsplat", { url, filename });
   asset.on("error", err => { badge.textContent = "Load failed: " + err; });
   app.assets.add(asset);
   app.assets.load(asset);
