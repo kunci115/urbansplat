@@ -10,6 +10,8 @@ services:
     runtime: nvidia
     environment:
       URBANSPLAT_DRY_RUN: "0"
+      URBANSPLAT_MASKING_ENABLED: "0"     # disabled (test: masking holes worse than people-blobs?)
+      URBANSPLAT_INPAINT_ENABLED: "0"     # inpaint needs masks; off when masking off
       URBANSPLAT_WORK_DIR: /work          # on /home (big disk), not container root
       URBANSPLAT_TRAIN_ITERATIONS: "30000" # final quality (~20-30 min on a 4090)
       URBANSPLAT_FRAME_SAMPLE_FPS: "1.5"  # keep total image count ~150 (exhaustive matcher is quadratic)
