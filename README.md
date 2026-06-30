@@ -24,8 +24,12 @@ perspective views), estimates camera poses, trains a Gaussian Splat, and serves 
 navigable 3D scene. Async, self-hosted, one command to run.
 
 ```
-video ─► extract (+360→perspective) ─► pose (COLMAP) ─► train (splatfacto) ─► package (.ply) ─► web viewer
+video ─► extract (+360→perspective) ─► mask (people/cars) ─► pose (COLMAP) ─► train (splatfacto) ─► SOG ─► web viewer
 ```
+
+The **mask** stage segments dynamic objects (people/vehicles, YOLO-seg) so COLMAP skips
+their features and splatfacto ignores those pixels — removing the floaters/"broken
+patches" moving objects otherwise leave behind.
 
 For **equirectangular 360** input each frame is reprojected into perspective ("pinhole")
 views before SfM — COLMAP can't pose raw equirectangular frames directly.
@@ -56,7 +60,7 @@ HTTP ─► FastAPI (api)  ──► Postgres (jobs / stages / scenes)
            │  upload ──► MinIO (source media)
            └─ enqueue ─► Redis ─► Celery worker
                                     └─ pipeline stages (sequential, per-job scratch dir)
-                                         extract · pose · train · compress
+                                         extract · mask · pose · train · compress
                                     artifacts ─► MinIO ─► API byte-proxy ─► viewer (PlayCanvas)
 ```
 
@@ -73,7 +77,8 @@ HTTP ─► FastAPI (api)  ──► Postgres (jobs / stages / scenes)
 | DB | PostgreSQL | PostgreSQL |
 | Storage | MinIO (S3) | AGPLv3 ⚠ |
 | 360 → perspective | py360convert | MIT |
-| Pose | COLMAP (via `ns-process-data`) | BSD |
+| Masking | ultralytics YOLO-seg | AGPL ⚠ |
+| Pose | COLMAP (driven directly) | BSD |
 | Trainer | nerfstudio splatfacto (gsplat) | Apache-2.0 |
 | Output | `.ply` passthrough (SOG planned) | — |
 | Viewer | PlayCanvas engine | MIT |
