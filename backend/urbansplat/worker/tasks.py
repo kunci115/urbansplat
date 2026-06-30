@@ -24,6 +24,7 @@ from ..pipeline import (
     compress,
     estimate_poses,
     extract_frames,
+    generate_inpaint,
     generate_masks,
     train_splat,
 )
@@ -33,6 +34,7 @@ from .celery_app import celery_app
 STAGE_FUNCS = {
     "extract": extract_frames,
     "mask": generate_masks,
+    "inpaint": generate_inpaint,
     "pose": estimate_poses,
     "train": train_splat,
     "compress": compress,

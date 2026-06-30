@@ -3,6 +3,7 @@
 from .base import PipelineContext, StageError, run_command
 from .compress import compress
 from .extract import extract_frames
+from .inpaint import generate_inpaint
 from .mask import generate_masks
 from .pose import estimate_poses
 from .train import train_splat
@@ -13,6 +14,7 @@ __all__ = [
     "run_command",
     "extract_frames",
     "generate_masks",
+    "generate_inpaint",
     "estimate_poses",
     "train_splat",
     "compress",

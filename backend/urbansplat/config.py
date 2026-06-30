@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     mask_dilate_px: int = 12               # grow masks to cover edges/shadows
     seg_conf: float = 0.25                 # detection confidence threshold
 
+    # Video inpainting (ProPainter) — fill masked dynamic regions with temporally
+    # consistent background so they don't leave holes/noise in the splat.
+    inpaint_enabled: bool = True
+    propainter_dir: str = "/opt/ProPainter"
+    inpaint_proc_size: int = 960           # ProPainter processing resolution (VRAM cap)
+
     @property
     def celery_broker(self) -> str:
         return self.redis_url
