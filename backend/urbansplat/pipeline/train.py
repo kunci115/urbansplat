@@ -23,7 +23,11 @@ def train_splat(ctx: PipelineContext, log: list[str]) -> None:
         return
 
     train_out = ctx.work / "train"
-    # Fixed names make the produced config path deterministic.
+    # Fixed names make the produced config path deterministic. The regularisation flags
+    # fight the "needle/spike" gaussians and floaters seen on sparse street captures:
+    #   antialiased        — anti-aliased rasterisation, fewer thin spikes
+    #   scale-regularization + max-gauss-ratio — penalise extreme anisotropy (needles)
+    #   cull-alpha-thresh  — drop near-transparent floaters
     run_command(
         [
             "ns-train", "splatfacto",
@@ -32,6 +36,10 @@ def train_splat(ctx: PipelineContext, log: list[str]) -> None:
             "--experiment-name", "job",
             "--timestamp", "run",
             "--max-num-iterations", str(settings.train_iterations),
+            "--pipeline.model.rasterize-mode", "antialiased",
+            "--pipeline.model.use-scale-regularization", "True",
+            "--pipeline.model.max-gauss-ratio", "5.0",
+            "--pipeline.model.cull-alpha-thresh", "0.15",
             "--viewer.quit-on-train-completion", "True",
         ],
         log,

@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     views_per_frame: int = 8               # perspective views sampled around each pano
     perspective_yaw_offset: float = 0.0    # yaw of first view (90 = side-on, best parallax)
     perspective_fov: float = 90.0          # FOV (deg) of each reprojected view
-    perspective_size: int = 1024           # px (square) per reprojected view
+    perspective_size: int = 1440           # px (square) per reprojected view (sharper text)
 
     # Dynamic-object masking (people/vehicles) — removes floaters + cleans SfM.
     masking_enabled: bool = True
