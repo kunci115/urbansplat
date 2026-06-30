@@ -15,6 +15,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && npm install -g @playcanvas/splat-transform \
     && rm -rf /var/lib/apt/lists/*
 
+# Ultralytics (YOLO-seg) for dynamic-object masking. --no-deps so it reuses nerfstudio's
+# torch/opencv instead of pulling a conflicting torch. Pre-download the seg weights.
+RUN python -m pip install --no-cache-dir --no-deps ultralytics ultralytics-thop py-cpuinfo \
+    && mkdir -p /app/models \
+    && (cd /app/models && python -c "from ultralytics import YOLO; YOLO('yolo11m-seg.pt')")
+
 WORKDIR /app
 COPY urbansplat ./urbansplat
 ENV PYTHONPATH=/app

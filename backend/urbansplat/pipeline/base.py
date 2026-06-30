@@ -23,6 +23,7 @@ class PipelineContext:
     work: Path                       # job-local working directory
     source_video: Path               # local path to downloaded source video
     frames_dir: Path = field(init=False)
+    masks_dir: Path = field(init=False)       # per-image dynamic-object masks
     processed_dir: Path = field(init=False)   # nerfstudio dataset (poses + images)
     colmap_dir: Path = field(init=False)
     splat_ply: Path = field(init=False)       # raw trainer output
@@ -34,6 +35,7 @@ class PipelineContext:
 
     def __post_init__(self) -> None:
         self.frames_dir = self.work / "frames"
+        self.masks_dir = self.work / "masks"
         self.processed_dir = self.work / "processed"
         self.colmap_dir = self.work / "colmap"
         self.splat_ply = self.work / "splat.ply"

@@ -48,12 +48,17 @@ def estimate_poses(ctx: PipelineContext, log: list[str]) -> None:
     sparse = ctx.colmap_dir / "sparse"
     sparse.mkdir(parents=True, exist_ok=True)
 
-    run_command(
-        ["colmap", "feature_extractor", "--database_path", str(db),
-         "--image_path", str(ctx.frames_dir),
-         "--ImageReader.single_camera", "1", "--SiftExtraction.use_gpu", "1"],
-        log,
-    )
+    # Use dynamic-object masks for feature extraction if the mask stage produced any.
+    have_masks = any(ctx.masks_dir.glob("*.png"))
+    extractor = [
+        "colmap", "feature_extractor", "--database_path", str(db),
+        "--image_path", str(ctx.frames_dir),
+        "--ImageReader.single_camera", "1", "--SiftExtraction.use_gpu", "1",
+    ]
+    if have_masks:
+        extractor += ["--ImageReader.mask_path", str(ctx.masks_dir)]
+        log.append("using dynamic-object masks for feature extraction")
+    run_command(extractor, log)
     run_command(
         ["colmap", "exhaustive_matcher", "--database_path", str(db),
          "--SiftMatching.use_gpu", "1"],
@@ -94,6 +99,31 @@ def estimate_poses(ctx: PipelineContext, log: list[str]) -> None:
          "--skip-colmap", "--colmap-model-path", str(rel_model)],
         log,
     )
-    if not (ctx.processed_dir / "transforms.json").exists():
+    transforms = ctx.processed_dir / "transforms.json"
+    if not transforms.exists():
         raise StageError("failed to convert COLMAP model to nerfstudio format")
+
+    if have_masks:
+        _attach_masks(ctx, transforms, log)
+
     log.append("pose estimation succeeded")
+
+
+def _attach_masks(ctx: PipelineContext, transforms: Path, log: list[str]) -> None:
+    """Add per-frame mask_path to the nerfstudio dataset so splatfacto ignores
+    masked (dynamic) pixels in its loss. Masks are placed alongside the images."""
+    out_masks = ctx.processed_dir / "masks"
+    out_masks.mkdir(parents=True, exist_ok=True)
+    data = json.loads(transforms.read_text())
+    attached = 0
+    for frame in data.get("frames", []):
+        stem = Path(frame["file_path"]).stem            # e.g. raw_00007_v00
+        src = ctx.masks_dir / f"{stem}.jpg.png"          # COLMAP-named mask
+        if not src.exists():
+            continue
+        dst = out_masks / f"{stem}.png"
+        shutil.copy(src, dst)
+        frame["mask_path"] = f"masks/{stem}.png"
+        attached += 1
+    transforms.write_text(json.dumps(data, indent=2))
+    log.append(f"attached {attached} masks to nerfstudio dataset")

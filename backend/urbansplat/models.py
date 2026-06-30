@@ -28,7 +28,7 @@ class JobStatus(str, enum.Enum):
 
 
 # Stage names, in execution order.
-STAGES = ("extract", "pose", "train", "compress")
+STAGES = ("extract", "mask", "pose", "train", "compress")
 
 
 class StageStatus(str, enum.Enum):

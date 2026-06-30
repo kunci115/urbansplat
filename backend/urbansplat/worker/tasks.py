@@ -24,6 +24,7 @@ from ..pipeline import (
     compress,
     estimate_poses,
     extract_frames,
+    generate_masks,
     train_splat,
 )
 from .celery_app import celery_app
@@ -31,6 +32,7 @@ from .celery_app import celery_app
 # Stage name → callable. Order matters; mirrors models.STAGES.
 STAGE_FUNCS = {
     "extract": extract_frames,
+    "mask": generate_masks,
     "pose": estimate_poses,
     "train": train_splat,
     "compress": compress,

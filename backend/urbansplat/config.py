@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     perspective_fov: float = 90.0          # FOV (deg) of each reprojected view
     perspective_size: int = 1024           # px (square) per reprojected view
 
+    # Dynamic-object masking (people/vehicles) — removes floaters + cleans SfM.
+    masking_enabled: bool = True
+    seg_model: str = "/app/models/yolo11m-seg.pt"   # pre-downloaded in the GPU image
+    seg_classes: str = "0,1,2,3,5,6,7"     # COCO: person,bicycle,car,motorcycle,bus,train,truck
+    mask_dilate_px: int = 12               # grow masks to cover edges/shadows
+    seg_conf: float = 0.25                 # detection confidence threshold
+
     @property
     def celery_broker(self) -> str:
         return self.redis_url
