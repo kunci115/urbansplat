@@ -13,8 +13,8 @@ services:
       URBANSPLAT_WORK_DIR: /work          # on /home (big disk), not container root
       URBANSPLAT_TRAIN_ITERATIONS: "30000" # final quality (~20-30 min on a 4090)
       URBANSPLAT_FRAME_SAMPLE_FPS: "3"    # 360: dense sampling for a translating sequence
-      URBANSPLAT_VIEWS_PER_FRAME: "2"     # two opposite side-on views (no intra-frame overlap)
-      URBANSPLAT_PERSPECTIVE_YAW_OFFSET: "90"  # look sideways = max parallax while walking
+      URBANSPLAT_VIEWS_PER_FRAME: "4"     # full ring (0/90/180/270) for coverage; COLMAP now stable
+      URBANSPLAT_PERSPECTIVE_YAW_OFFSET: "0"
       NVIDIA_VISIBLE_DEVICES: "0"          # one 4090; GPU 1 free for a second worker
       NVIDIA_DRIVER_CAPABILITIES: all
     volumes:
