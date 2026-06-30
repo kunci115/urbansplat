@@ -49,8 +49,8 @@
     <form id="upload">
       <label>Scene name</label>
       <input type="text" id="name" placeholder="e.g. Market Street" />
-      <label>Video (.mp4)</label>
-      <input type="file" id="file" accept="video/*" required />
+      <label>360 video(s) — select multiple overlapping passes for richer coverage</label>
+      <input type="file" id="file" accept="video/*" multiple required />
       <button type="submit" id="submit">Process scene</button>
     </form>
     <div id="jobs"><div class="empty">No jobs yet.</div></div>
@@ -76,11 +76,11 @@ let activeId = null;
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = document.getElementById("submit");
-  const file = document.getElementById("file").files[0];
-  if (!file) return;
+  const files = document.getElementById("file").files;
+  if (!files.length) return;
   btn.disabled = true; btn.textContent = "Uploading…";
   const fd = new FormData();
-  fd.append("file", file);
+  for (const f of files) fd.append("files", f);
   fd.append("name", document.getElementById("name").value || "untitled");
   try { await fetch(`${API}/api/jobs`, { method: "POST", body: fd }); form.reset(); }
   catch (err) { alert("Upload failed: " + err); }

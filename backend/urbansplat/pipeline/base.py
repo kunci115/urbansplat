@@ -21,7 +21,7 @@ class PipelineContext:
 
     job_id: str
     work: Path                       # job-local working directory
-    source_video: Path               # local path to downloaded source video
+    source_videos: list[Path]        # one or more downloaded source clips (multi-pass)
     frames_dir: Path = field(init=False)
     masks_dir: Path = field(init=False)       # per-image dynamic-object masks
     processed_dir: Path = field(init=False)   # nerfstudio dataset (poses + images)
@@ -43,6 +43,11 @@ class PipelineContext:
         self.output_format = "ply"
         for d in (self.work, self.frames_dir):
             d.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def source_video(self) -> Path:
+        """First clip — used where a single representative video is needed (e.g. GPS)."""
+        return self.source_videos[0]
 
 
 def run_command(cmd: list[str], log: list[str], cwd: str | Path | None = None) -> None:

@@ -83,35 +83,38 @@ def extract_frames(ctx: PipelineContext, log: list[str]) -> None:
         log.append("[dry-run] wrote 8 stub frames")
         return
 
-    # 1. Sample raw frames from the video at the configured fps.
-    raw_dir = ctx.work / "raw_frames"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    run_command(
-        [
-            "ffmpeg", "-hide_banner", "-i", str(ctx.source_video),
-            "-vf", f"fps={settings.frame_sample_fps}", "-q:v", "2",
-            str(raw_dir / "raw_%05d.jpg"),
-        ],
-        log,
-    )
-    raw = sorted(raw_dir.glob("raw_*.jpg"))
-    if not raw:
-        raise StageError("no frames extracted from video")
+    # Sample + reproject each clip. Frame names are prefixed with the clip index
+    # (s{n}_) so multiple overlapping passes pool into one joint reconstruction while
+    # staying separable into per-clip temporal tracks (for inpainting).
+    total_views = 0
+    kinds = set()
+    for vidx, video in enumerate(ctx.source_videos):
+        raw_dir = ctx.work / f"raw_{vidx}"
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        run_command(
+            ["ffmpeg", "-hide_banner", "-i", str(video),
+             "-vf", f"fps={settings.frame_sample_fps}", "-q:v", "2",
+             str(raw_dir / "raw_%05d.jpg")],
+            log,
+        )
+        raw = sorted(raw_dir.glob("raw_*.jpg"))
+        if not raw:
+            raise StageError(f"no frames extracted from clip {vidx}")
 
-    # 2. Equirectangular? reproject to perspective views; else use frames directly.
-    if _is_equirectangular(raw[0]):
-        total = 0
-        for f in raw:
-            total += _equirect_to_perspectives(f, ctx.frames_dir, f.stem)
-        ctx.metrics["input_kind"] = "equirectangular_360"
-        ctx.metrics["perspective_views"] = total
-        log.append(f"360 input: {len(raw)} frames → {total} perspective views "
-                   f"({settings.views_per_frame}/frame, {settings.perspective_fov}° FOV)")
-    else:
-        for f in raw:
-            f.replace(ctx.frames_dir / f"{f.stem}.jpg")
-        ctx.metrics["input_kind"] = "perspective"
-        log.append(f"perspective input: {len(raw)} frames")
+        if _is_equirectangular(raw[0]):
+            for f in raw:
+                total_views += _equirect_to_perspectives(
+                    f, ctx.frames_dir, f"s{vidx}_{f.stem}")
+            kinds.add("equirectangular_360")
+        else:
+            for f in raw:
+                f.replace(ctx.frames_dir / f"s{vidx}_{f.stem}.jpg")
+            kinds.add("perspective")
+        log.append(f"clip {vidx}: {len(raw)} raw frames")
+
+    ctx.metrics["input_kind"] = "+".join(sorted(kinds))
+    ctx.metrics["clips"] = len(ctx.source_videos)
+    ctx.metrics["perspective_views"] = total_views
 
     # 3. Blur filter (skipped if opencv unavailable).
     kept, dropped = 0, 0

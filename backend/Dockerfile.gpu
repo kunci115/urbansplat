@@ -22,6 +22,10 @@ RUN python -m pip install --no-cache-dir --no-deps ultralytics ultralytics-thop 
     && mkdir -p /app/models \
     && (cd /app/models && python -c "from ultralytics import YOLO; YOLO('yolo11m-seg.pt')")
 
+# COLMAP vocab tree — scalable feature matching for big multi-clip jobs.
+RUN curl -sL https://demuc.de/colmap/vocab_tree_flickr100K_words256K.bin \
+         -o /opt/colmap_vocab_tree.bin
+
 # ProPainter — temporally-consistent video inpainting of masked dynamic regions.
 RUN python -m pip install --no-cache-dir av einops timm scikit-image imageio-ffmpeg addict yapf future \
     && curl -sL https://github.com/sczhou/ProPainter/archive/refs/heads/main.tar.gz | tar xz -C /opt \

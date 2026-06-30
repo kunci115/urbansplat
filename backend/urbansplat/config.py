@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     inpaint_proc_size: int = 720           # ProPainter processing resolution (VRAM cap)
     inpaint_subvideo: int = 20             # frames per ProPainter chunk (lower = less VRAM)
 
+    # COLMAP matching — exhaustive is quadratic; use vocab-tree for big multi-clip jobs.
+    exhaustive_match_max: int = 200        # above this, switch to vocab-tree matcher
+    vocab_tree_path: str = "/opt/colmap_vocab_tree.bin"
+
     @property
     def celery_broker(self) -> str:
         return self.redis_url

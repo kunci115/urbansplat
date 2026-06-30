@@ -16,9 +16,11 @@ from ..config import settings
 from .base import PipelineContext, run_command
 
 
-def _yaw_key(stem: str) -> str:
-    m = re.search(r"_v(\d+)", stem)
-    return m.group(1) if m else "0"
+def _track_key(stem: str) -> str:
+    """A temporal track = one clip + one yaw direction (e.g. s0_v02)."""
+    s = re.search(r"s(\d+)_", stem)
+    v = re.search(r"_v(\d+)", stem)
+    return f"s{s.group(1) if s else '0'}_v{v.group(1) if v else '0'}"
 
 
 def generate_inpaint(ctx: PipelineContext, log: list[str]) -> None:
@@ -35,7 +37,7 @@ def generate_inpaint(ctx: PipelineContext, log: list[str]) -> None:
     # Group perspective views into per-yaw temporal tracks (a coherent walk video each).
     tracks: dict[str, list[Path]] = {}
     for f in sorted(ctx.frames_dir.glob("*.jpg")):
-        tracks.setdefault(_yaw_key(f.stem), []).append(f)
+        tracks.setdefault(_track_key(f.stem), []).append(f)
 
     sz = settings.inpaint_proc_size
     work = ctx.work / "inpaint"

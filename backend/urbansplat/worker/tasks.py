@@ -68,10 +68,15 @@ def process_job(self, job_id: str) -> str:
         job.status = JobStatus.running
         source_key = job.source_key
 
-    source_video = work / "source.mp4"
-    storage.get_file(source_key, source_video)
+    # source_key holds one or more object keys (newline-separated) for multi-clip jobs.
+    keys = [k for k in source_key.splitlines() if k.strip()]
+    source_videos = []
+    for i, key in enumerate(keys):
+        dest = work / f"source_{i}.mp4"
+        storage.get_file(key, dest)
+        source_videos.append(dest)
 
-    ctx = PipelineContext(job_id=job_id, work=work, source_video=source_video)
+    ctx = PipelineContext(job_id=job_id, work=work, source_videos=source_videos)
 
     try:
         for name in STAGE_FUNCS:

@@ -19,17 +19,24 @@ router = APIRouter(prefix="/api", tags=["jobs"])
 
 @router.post("/jobs", response_model=JobCreatedOut, status_code=201)
 def create_job(
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(...),
     name: str = Form("untitled"),
     session: Session = Depends(get_session),
 ) -> JobCreatedOut:
-    """Upload a 360 video and enqueue processing."""
-    if not file.filename or not file.filename.lower().endswith((".mp4", ".mov", ".mkv")):
-        raise HTTPException(400, "expected a video file (.mp4/.mov/.mkv)")
+    """Upload one or more overlapping 360 clips (multi-pass) and enqueue processing."""
+    if not files:
+        raise HTTPException(400, "at least one video file is required")
+    for f in files:
+        if not f.filename or not f.filename.lower().endswith((".mp4", ".mov", ".mkv")):
+            raise HTTPException(400, f"expected video files (.mp4/.mov/.mkv): {f.filename}")
 
     job_id = str(uuid.uuid4())
-    source_key = f"sources/{job_id}/{file.filename}"
-    _put_upload(source_key, file)
+    keys = []
+    for i, f in enumerate(files):
+        key = f"sources/{job_id}/{i}_{f.filename}"
+        _put_upload(key, f)
+        keys.append(key)
+    source_key = "\n".join(keys)   # worker splits on newlines
 
     job = Job(id=job_id, name=name, source_key=source_key, status=JobStatus.pending)
     for ordinal, stage in enumerate(STAGES):

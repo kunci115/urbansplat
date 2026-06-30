@@ -59,11 +59,25 @@ def estimate_poses(ctx: PipelineContext, log: list[str]) -> None:
         extractor += ["--ImageReader.mask_path", str(ctx.masks_dir)]
         log.append("using dynamic-object masks for feature extraction")
     run_command(extractor, log)
-    run_command(
-        ["colmap", "exhaustive_matcher", "--database_path", str(db),
-         "--SiftMatching.use_gpu", "1"],
-        log,
-    )
+    # Exhaustive matching is O(n²) and stalls past a few hundred images (multi-clip
+    # jobs). Switch to vocab-tree matching above a threshold for scalability.
+    n_images = sum(1 for _ in ctx.frames_dir.glob("*.jpg"))
+    vocab = Path(settings.vocab_tree_path)
+    if n_images > settings.exhaustive_match_max and vocab.exists():
+        run_command(
+            ["colmap", "vocab_tree_matcher", "--database_path", str(db),
+             "--SiftMatching.use_gpu", "1",
+             "--VocabTreeMatching.vocab_tree_path", str(vocab)],
+            log,
+        )
+        log.append(f"vocab-tree matching ({n_images} images)")
+    else:
+        run_command(
+            ["colmap", "exhaustive_matcher", "--database_path", str(db),
+             "--SiftMatching.use_gpu", "1"],
+            log,
+        )
+        log.append(f"exhaustive matching ({n_images} images)")
     run_command(
         ["colmap", "mapper", "--database_path", str(db),
          "--image_path", str(ctx.frames_dir), "--output_path", str(sparse)],
