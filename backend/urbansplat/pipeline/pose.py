@@ -106,6 +106,13 @@ def estimate_poses(ctx: PipelineContext, log: list[str]) -> None:
     if have_masks:
         _attach_masks(ctx, transforms, log)
 
+    # Georeference if the source carries GPS telemetry (no-op otherwise).
+    try:
+        from .georef import georeference
+        georeference(ctx, log)
+    except Exception as exc:  # georef is best-effort; never fail the job over it
+        log.append(f"[geo] skipped ({exc})")
+
     log.append("pose estimation succeeded")
 
 
