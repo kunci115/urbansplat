@@ -50,7 +50,8 @@ class Settings(BaseSettings):
     # consistent background so they don't leave holes/noise in the splat.
     inpaint_enabled: bool = True
     propainter_dir: str = "/opt/ProPainter"
-    inpaint_proc_size: int = 960           # ProPainter processing resolution (VRAM cap)
+    inpaint_proc_size: int = 720           # ProPainter processing resolution (VRAM cap)
+    inpaint_subvideo: int = 20             # frames per ProPainter chunk (lower = less VRAM)
 
     @property
     def celery_broker(self) -> str:

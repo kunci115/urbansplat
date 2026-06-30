@@ -63,7 +63,8 @@ def generate_inpaint(ctx: PipelineContext, log: list[str]) -> None:
             ["python", "inference_propainter.py",
              "-i", str(tdir / "frames"), "-m", str(tdir / "masks"),
              "-o", str(out), "--save_frames", "--fp16",
-             "--width", str(sz), "--height", str(sz)],
+             "--width", str(sz), "--height", str(sz),
+             "--subvideo_length", str(settings.inpaint_subvideo)],
             log, cwd=settings.propainter_dir,
         )
 
