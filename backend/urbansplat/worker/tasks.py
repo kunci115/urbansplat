@@ -109,6 +109,14 @@ def _run_stage(job_id: str, name: str, ctx: PipelineContext) -> None:
 def _finalize_success(job_id: str, ctx: PipelineContext) -> None:
     splat_key = f"scenes/{job_id}/splat.{ctx.output_format}"
     storage.put_file(splat_key, ctx.output, content_type="application/octet-stream")
+
+    # Also retain the raw 3DGS .ply (full spherical harmonics) for Unity/DCC consumers
+    # — Unity gaussian-splat plugins import .ply, not the web SOG.
+    if ctx.output_format != "ply" and ctx.splat_ply.exists():
+        storage.put_file(
+            f"scenes/{job_id}/splat.ply", ctx.splat_ply,
+            content_type="application/octet-stream",
+        )
     with session_scope() as session:
         job = session.get(Job, job_id)
         job.status = JobStatus.succeeded

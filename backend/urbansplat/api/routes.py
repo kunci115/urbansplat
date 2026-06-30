@@ -91,3 +91,23 @@ def get_splat(job_id: str, session: Session = Depends(get_session)) -> Streaming
         media_type="application/octet-stream",
         headers=headers,
     )
+
+
+@router.get("/scenes/{job_id}/ply")
+def get_ply(job_id: str, session: Session = Depends(get_session)) -> StreamingResponse:
+    """Download the raw 3DGS .ply (for Unity / DCC import). 404 if not retained."""
+    scene = session.query(Scene).filter(Scene.job_id == job_id).one_or_none()
+    if scene is None:
+        raise HTTPException(404, "scene not ready")
+    key = f"scenes/{job_id}/splat.ply"
+    try:
+        size = storage.stat(key).size
+    except Exception:
+        raise HTTPException(404, "no .ply retained for this scene")
+    headers = {
+        "Content-Disposition": f'attachment; filename="{job_id}.ply"',
+        "Content-Length": str(size),
+    }
+    return StreamingResponse(
+        storage.stream_object(key), media_type="application/octet-stream", headers=headers
+    )
