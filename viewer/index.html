@@ -36,6 +36,8 @@
   .status.failed { color:#ff6b6b; }
   .dl { display:inline-block; margin-top:8px; font-size:11px; color:var(--accent); text-decoration:none; border:1px solid var(--line); border-radius:5px; padding:3px 8px; }
   .dl:hover { border-color:var(--accent); }
+  .live { display:inline-block; margin-top:8px; margin-right:6px; font-size:11px; color:#ff6b6b; text-decoration:none; border:1px solid #ff6b6b; border-radius:5px; padding:3px 8px; }
+  .live:hover { background:#ff6b6b22; }
   .empty { color:var(--muted); text-align:center; padding:40px 0; }
 </style>
 </head>
@@ -96,13 +98,21 @@ function renderJob(job) {
     : `<div class="status">${job.status}</div>`;
   const active = job.id === activeId ? "active" : "";
   const fmt = job.scene ? (job.scene.splat_format || "ply") : "";
+  // Live training viewer (nerfstudio share URL), shown while the train stage runs.
+  let live = "";
+  const tr = job.stages.find(s => s.name === "train");
+  if (tr && tr.status === "running" && tr.metrics) {
+    try { const u = JSON.parse(tr.metrics).viewer_url;
+      if (u) live = `<a class="live" href="${u}" target="_blank" onclick="event.stopPropagation()">🔴 Watch live training</a>`;
+    } catch (_) {}
+  }
   const dl = job.scene
     ? `<a class="dl" href="${API}/api/scenes/${job.id}/ply" download="${job.name}.ply"
          onclick="event.stopPropagation()" title="Raw 3DGS .ply for Unity / DCC import">⬇ PLY (Unity)</a>`
     : "";
   return `<div class="job ${active}" data-id="${job.id}" data-ready="${job.scene?1:0}" data-fmt="${fmt}">
     <div class="name">${job.name}</div><div class="id">${job.id}</div>
-    <div class="stages">${pills}</div>${status}${dl}</div>`;
+    <div class="stages">${pills}</div>${status}${live}${dl}</div>`;
 }
 
 async function refresh() {
