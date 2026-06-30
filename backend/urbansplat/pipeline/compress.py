@@ -28,7 +28,11 @@ def compress(ctx: PipelineContext, log: list[str]) -> None:
 
     sog = ctx.work / "splat.sog"
     if shutil.which("splat-transform"):
-        run_command(["splat-transform", str(ctx.splat_ply), str(sog)], log)
+        # -H 0 drops spherical-harmonic bands (also avoids splat-transform's WebGPU SH
+        # path, which fails headless) → much smaller; -N strips NaN/Inf gaussians.
+        run_command(
+            ["splat-transform", str(ctx.splat_ply), "-H", "0", "-N", str(sog)], log
+        )
 
     if sog.exists() and sog.stat().st_size > 0:
         ctx.output = sog
