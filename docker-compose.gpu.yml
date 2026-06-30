@@ -12,8 +12,8 @@ services:
       URBANSPLAT_DRY_RUN: "0"
       URBANSPLAT_WORK_DIR: /work          # on /home (big disk), not container root
       URBANSPLAT_TRAIN_ITERATIONS: "30000" # final quality (~20-30 min on a 4090)
-      URBANSPLAT_FRAME_SAMPLE_FPS: "3"    # 360: dense sampling for a translating sequence
-      URBANSPLAT_VIEWS_PER_FRAME: "4"     # full ring (0/90/180/270) for coverage; COLMAP now stable
+      URBANSPLAT_FRAME_SAMPLE_FPS: "1.5"  # keep total image count ~150 (exhaustive matcher is quadratic)
+      URBANSPLAT_VIEWS_PER_FRAME: "4"     # full ring (0/90/180/270) for coverage
       URBANSPLAT_PERSPECTIVE_YAW_OFFSET: "0"
       NVIDIA_VISIBLE_DEVICES: "0"          # one 4090; GPU 1 free for a second worker
       NVIDIA_DRIVER_CAPABILITIES: all
